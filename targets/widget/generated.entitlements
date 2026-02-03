@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.rahulboggaram.Spot</string>
+		<string>group.com.rahulboggaram.Spot.goldapp</string>
 	</array>
 </dict>
 </plist>

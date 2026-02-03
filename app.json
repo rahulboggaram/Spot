@@ -13,11 +13,22 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.rahulboggaram.Spot",
-      "appleTeamId": "YOUR_TEAM_ID",
+      "buildNumber": "2",
+      "appleTeamId": "G4JSN2MWNK",
       "entitlements": {
         "com.apple.security.application-groups": [
-          "group.com.rahulboggaram.Spot"
+          "group.com.rahulboggaram.Spot.goldapp",
+          "group.com.rahulboggaram.Spot.goldapp"
         ]
+      },
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification",
+          "fetch",
+          "remote-notification",
+          "fetch"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -27,8 +38,60 @@
       },
       "package": "com.anonymous.Spot"
     },
+    "web": {
+      "name": "Spot Admin",
+      "shortName": "Spot",
+      "description": "Gold and Silver Price Admin",
+      "favicon": "./assets/icon.png",
+      "bundler": "metro",
+      "output": "static",
+      "display": "standalone",
+      "startUrl": "/",
+      "themeColor": "#000000",
+      "backgroundColor": "#000000",
+      "scope": "/",
+      "orientation": "portrait",
+      "preferRelatedApplications": false
+    },
     "plugins": [
-      "@bacons/apple-targets"
-    ]
+      "@bacons/apple-targets",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#000000"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.rahulboggaram.Spot.widget",
+                  "targetName": "widget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.rahulboggaram.Spot.goldapp"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "05f18532-8f5b-432d-8fc5-1ed619a84a05"
+      }
+    }
   }
 }
