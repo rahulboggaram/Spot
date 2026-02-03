@@ -38,6 +38,10 @@ yarn-error.*
 
 app-example
 
-# generated native folders
-/ios
+# generated native folders (track ios project; ignore generated artifacts)
+/ios/Pods
+/ios/build
+/ios/*.xcworkspace
+/ios/.xcode.env.local
 /android
+.vercel
