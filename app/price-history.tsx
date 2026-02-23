@@ -1,12 +1,13 @@
 import { SimpleLineChart } from '@/components/simple-line-chart';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
+import { getFontFamily } from '@/utils/font';
 import { getInterFontFeatures } from '@/utils/font-features';
+import { logger } from '@/utils/logger';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Dimensions,
     Platform,
     ScrollView,
     StyleSheet,
@@ -14,26 +15,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
-const screenWidth = Dimensions.get('window').width;
-
-// Helper function to get the correct font family based on platform and weight
-const getFontFamily = (weight: number = 400) => {
-  if (Platform.OS === 'web') {
-    return "'Inter', sans-serif";
-  }
-  
-  const weightMap: { [key: number]: string } = {
-    400: 'Inter-Regular',
-    500: 'Inter-Medium',
-    600: 'Inter-SemiBold',
-    700: 'Inter-Bold',
-    800: 'Inter-ExtraBold',
-    900: 'Inter-Black',
-  };
-  
-  return weightMap[weight] || 'Inter-Regular';
-};
 
 interface HistoricalPrice {
   date: string;
@@ -49,7 +30,7 @@ export default function PriceHistoryPage() {
   const isDark = colorScheme === 'dark';
   const [activeTab, setActiveTab] = useState<'gold' | 'silver'>('gold');
   const [range, setRange] = useState<'7D' | '15D' | '30D'>('7D');
-  const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [priceHistory, setPriceHistory] = useState<import('@/types/market').MarketPrice[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
   const [scrollOffset, setScrollOffset] = useState<number>(0);
@@ -83,7 +64,7 @@ export default function PriceHistoryPage() {
           .limit(365);
         
         if (error) {
-          console.log('📊 historical_prices error:', error.message);
+          logger.warn('historical_prices error:', error.message);
           return;
         }
         
@@ -104,7 +85,7 @@ export default function PriceHistoryPage() {
           setHistoricalData(mappedData);
         }
       } catch (e) {
-        console.error('❌ fetchHistoricalPrices:', e);
+        logger.error('fetchHistoricalPrices:', e);
       }
     };
     fetchHistoricalPrices();
@@ -122,7 +103,7 @@ export default function PriceHistoryPage() {
           .limit(100);
         
         if (error) {
-          console.error('❌ Error loading price history:', error);
+          logger.error('Error loading price history:', error);
           setPriceHistory([]);
           setLoadingHistory(false);
           return;
@@ -140,7 +121,7 @@ export default function PriceHistoryPage() {
           setPriceHistory([]);
         }
       } catch (error) {
-        console.error('❌ Error loading price history:', error);
+        logger.error('Error loading price history:', error);
         setPriceHistory([]);
       } finally {
         setLoadingHistory(false);
@@ -284,7 +265,7 @@ export default function PriceHistoryPage() {
       return null;
     }
     
-    const validData = dataToUse.filter((item) => {
+    const validData = dataToUse.filter((item: any) => {
       if (!item.date) return false;
       const itemDate = new Date(item.date);
       return !isNaN(itemDate.getTime());
@@ -297,7 +278,7 @@ export default function PriceHistoryPage() {
     // Step 1: Deduplicate by date (keep the most recent entry per date)
     // Group by date string (YYYY-MM-DD) and keep the entry with the most recent timestamp
     const dateMap = new Map<string, any>();
-    validData.forEach((item) => {
+    validData.forEach((item: any) => {
       if (!item.date) return;
       const dateStr = typeof item.date === 'string' ? item.date.split('T')[0] : new Date(item.date).toISOString().split('T')[0];
       const existing = dateMap.get(dateStr);
@@ -404,7 +385,6 @@ export default function PriceHistoryPage() {
       const percentageChanges = prices.map((price) => 
         firstPrice !== 0 ? ((price - firstPrice) / firstPrice) * 100 : 0
       );
-      console.log('📊 Silver chart data:', { labelsCount: labels.length, pricesCount: prices.length, firstPrice, lastPrice: prices[prices.length - 1] });
       return { labels, prices: percentageChanges, color: 'rgba(0, 0, 0, 0.65)', label: 'Silver (per kilo)', raw: series, actualPrices: prices, dates: series.map((item) => item.date) };
     }
   }, [chartDataFromPriceHistory, historicalData, activeTab, rangeDays, loadingHistory, priceHistory]);
@@ -609,7 +589,7 @@ export default function PriceHistoryPage() {
                       // Handle both callback signatures (index only or index + value)
                       setSelectedPointIndex(typeof index === 'number' ? index : null);
                     } catch (error) {
-                      console.error('Error selecting point:', error);
+                      logger.error('Error selecting point:', error);
                     }
                   }}
                 />
@@ -628,7 +608,7 @@ export default function PriceHistoryPage() {
                       setSelectedPointIndex(null);
                       setScrollOffset(0);
                     } catch (error) {
-                      console.error('Error updating range:', error);
+                      logger.error('Error updating range:', error);
                     }
                   }}
                   activeOpacity={0.7}

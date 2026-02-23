@@ -1,7 +1,8 @@
+import { getFontFamily } from '@/utils/font';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { Platform, Text, View } from 'react-native';
+import { Platform, Text, TextStyle, View } from 'react-native';
 
 interface MetalPriceCardProps {
   title: string;
@@ -19,26 +20,7 @@ export function MetalPriceCard({ title, subtitle, basePrice, priceChange, colors
   const displayPrice = isPriceLoading ? 0 : Math.round(basePrice * priceMultiplier);
   const purityMultipliers = [0.916, 0.833, 0.750];
   const purityLabels = ['22K', '20K', '18K']; // Will be split: "22" + " K" with 2px space
-  const webFontWeight = (weight: string) => (Platform.OS === 'web' ? ({ fontWeight: weight } as const) : ({} as const));
-  // Helper to get Inter font based on weight
-  // React Native doesn't support variable fonts well, so we use separate font files per weight
-  const getFontFamily = (weight: number = 400) => {
-    if (Platform.OS === 'web') {
-      return "'Inter', sans-serif";
-    }
-    
-    // Map font weights to specific font family names (static fonts)
-    const weightMap: { [key: number]: string } = {
-      400: 'Inter-Regular',
-      500: 'Inter-Medium',
-      600: 'Inter-SemiBold',
-      700: 'Inter-Bold',
-      800: 'Inter-ExtraBold',
-      900: 'Inter-Black',
-    };
-    
-    return weightMap[weight] || 'Inter-Regular';
-  };
+  const webFontWeight = (weight: string): Partial<TextStyle> => (Platform.OS === 'web' ? { fontWeight: weight as TextStyle['fontWeight'] } : {});
 
   return (
     <View style={{
