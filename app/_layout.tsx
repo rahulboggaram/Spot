@@ -98,7 +98,6 @@ export default function RootLayout() {
           headerShown: false,
           headerStyle: {
             backgroundColor: 'transparent',
-            borderBottomWidth: 0,
           },
         }}
       >
