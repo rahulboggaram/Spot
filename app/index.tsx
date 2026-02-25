@@ -51,18 +51,6 @@ const isSharedGroupPreferencesAvailable = () => {
 
 const APP_GROUP = 'group.com.rahulboggaram.Spot.goldapp';
 
-/** A row from the Supabase `historical_prices` table (snake_case DB columns). */
-interface HistoricalPriceRow {
-  id?: number;
-  date: string;
-  gold_price_am: number;
-  gold_price_pm: number;
-  silver_price_am: number;
-  silver_price_pm: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
 // Background App Refresh: iOS may wake the app periodically when in background to update the widget.
 // Only works when app is backgrounded (not force-quit). Must be defined at top level.
 const WIDGET_BACKGROUND_TASK = 'widget-price-refresh';
@@ -113,7 +101,7 @@ export default function GoldApp() {
   
   const router = useRouter();
   const [data, setData] = useState<any>(null);
-  const [historicalData, setHistoricalData] = useState<HistoricalPriceRow[]>([]);
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [previousPrices, setPreviousPrices] = useState<{ gold: number; silver: number } | null>(null);
   // Use ref to store previous price synchronously for immediate comparison
   const previousPricesRef = useRef<{ gold: number; silver: number } | null>(null);
@@ -192,7 +180,7 @@ export default function GoldApp() {
       // If no price provided, try to get from historical data
       if (!priceToUse && historicalData.length > 0) {
         const latestEntry = historicalData[0];
-        priceToUse = latestEntry.gold_price_pm / 10;
+        priceToUse = (latestEntry.gold_price_pm || latestEntry.goldPricePM) / 10; // Convert 10g to per gram
         console.log('🔧 Using historical database price:', priceToUse);
       }
       
@@ -416,7 +404,7 @@ export default function GoldApp() {
       }
       
       if (historical && historical.length > 0) {
-        setHistoricalData(historical as HistoricalPriceRow[]);
+        setHistoricalData(historical);
       }
     } catch (e) {
       console.log('Silent error in history:', e);
@@ -485,7 +473,7 @@ export default function GoldApp() {
     if (historicalData.length > 0 && !data && Platform.OS === 'ios') {
       // If we have historical data but no current data, update widget with historical
       const latestEntry = historicalData[0];
-      const goldPrice = latestEntry.gold_price_pm / 10;
+      const goldPrice = (latestEntry.gold_price_pm || latestEntry.goldPricePM) / 10;
       updateWidget(goldPrice, undefined, undefined, undefined).catch(err => {
         console.log('⚠️ Historical widget update failed (non-critical):', err);
       });
@@ -605,8 +593,8 @@ export default function GoldApp() {
     if (historicalData && historicalData.length > 0) {
       const latestEntry = historicalData[0]; // Most recent entry from database
       return {
-        goldPerGram: latestEntry.gold_price_pm / 10,
-        silverPerGram: latestEntry.silver_price_pm / 1000,
+        goldPerGram: (latestEntry.gold_price_pm || latestEntry.goldPricePM) / 10, // Convert 10g to per gram
+        silverPerGram: (latestEntry.silver_price_pm || latestEntry.silverPricePM) / 1000, // Convert 1kg to per gram
       };
     }
     // Fallback to static historical prices
@@ -620,10 +608,10 @@ export default function GoldApp() {
 
   const latestHistorical = getLatestHistoricalPrices();
   
-  // Prefer live DB prices, but gracefully fall back to historical values
-  // so web users don't get stuck on skeleton UI during transient DB/network failures.
-  const goldBase = data?.gold_999_base ?? latestHistorical?.goldPerGram ?? null;
-  const silverBase = data?.silver_base ?? latestHistorical?.silverPerGram ?? null;
+  // Only show database prices (not historical fallback) to avoid showing random numbers
+  // Show loading state if we don't have database data yet
+  const goldBase = data?.gold_999_base || null; // null means loading, don't use fallback
+  const silverBase = data?.silver_base || null; // null means loading, don't use fallback
 
   // Get last historical entry from static data as fallback
   const lastHistoricalEntry = historicalPrices.length > 0 ? {
@@ -704,8 +692,8 @@ export default function GoldApp() {
     } else if (historicalData && historicalData.length > 1) {
       // Use second entry from historical data as previous price (first entry is current)
       const previousEntry = historicalData[1];
-      previousGold10g = previousEntry.gold_price_pm || 0;
-      previousSilver1kg = previousEntry.silver_price_pm || 0;
+      previousGold10g = (previousEntry.gold_price_pm || previousEntry.goldPricePM || 0);
+      previousSilver1kg = (previousEntry.silver_price_pm || previousEntry.silverPricePM || 0);
       console.log('🔍 Using historical data for previous prices:', { previousGold10g, previousSilver1kg });
     } else if (historicalPrices && historicalPrices.length > 1) {
       // Fallback to static historical data

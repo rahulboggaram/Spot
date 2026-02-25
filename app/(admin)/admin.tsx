@@ -302,56 +302,43 @@ export default function AdminScreen() {
   // Load the most recent prices and all price history
   useEffect(() => {
     const loadPrices = async () => {
-      try {
-        // Load current prices
-        const { data: currentData, error: currentError } = await supabase
-          .from('market_prices')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (currentError) {
-          console.log('⚠️ Could not load latest market price:', currentError.message);
-        }
+      // Load current prices
+      const { data: currentData, error: currentError } = await supabase
+        .from('market_prices')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (currentData) {
+        // Store current prices in per gram format for comparison
+        setCurrentGoldPerGram(currentData.gold_999_base || 0);
+        setCurrentSilverPerGram(currentData.silver_base || 0);
         
-        if (currentData) {
-          // Store current prices in per gram format for comparison
-          setCurrentGoldPerGram(currentData.gold_999_base || 0);
-          setCurrentSilverPerGram(currentData.silver_base || 0);
-          
-          // Convert from per gram to display units:
-          // Gold: per gram * 10 = 10 grams rate
-          // Silver: per gram * 1000 = 1kg rate
-          const goldDisplay = (currentData.gold_999_base * 10).toLocaleString('en-IN');
-          const silverDisplay = (currentData.silver_base * 1000).toLocaleString('en-IN');
-          setGoldPrice(goldDisplay);
-          setSilverPrice(silverDisplay);
-        }
-
-        // Load all price history since December 15, 2025
-        const startDate = new Date('2025-12-15T00:00:00.000Z');
-        const startDateISO = startDate.toISOString();
-        
-        const { data: historyData, error: historyError } = await supabase
-          .from('market_prices')
-          .select('*')
-          .gte('updated_at', startDateISO)
-          .order('updated_at', { ascending: false });
-
-        if (historyError) {
-          console.log('⚠️ Could not load market history:', historyError.message);
-        }
-        
-        if (historyData) {
-          setPriceHistory(historyData);
-        }
-      } catch (e) {
-        console.error('❌ Failed loading admin prices:', e);
-      } finally {
-        // Always stop spinner so the admin form is usable even when fetch fails.
-        setFetching(false);
+        // Convert from per gram to display units:
+        // Gold: per gram * 10 = 10 grams rate
+        // Silver: per gram * 1000 = 1kg rate
+        const goldDisplay = (currentData.gold_999_base * 10).toLocaleString('en-IN');
+        const silverDisplay = (currentData.silver_base * 1000).toLocaleString('en-IN');
+        setGoldPrice(goldDisplay);
+        setSilverPrice(silverDisplay);
       }
+
+      // Load all price history since December 15, 2025
+      const startDate = new Date('2025-12-15T00:00:00.000Z');
+      const startDateISO = startDate.toISOString();
+      
+      const { data: historyData, error: historyError } = await supabase
+        .from('market_prices')
+        .select('*')
+        .gte('updated_at', startDateISO)
+        .order('updated_at', { ascending: false });
+      
+      if (historyData) {
+        setPriceHistory(historyData);
+      }
+      
+      setFetching(false);
     };
     loadPrices();
   }, []);
