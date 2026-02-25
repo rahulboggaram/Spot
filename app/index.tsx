@@ -517,11 +517,9 @@ export default function GoldApp() {
             return;
           }
           
-          // Get Expo push token (projectId required for production builds)
+          // Get Expo push token
           try {
-            const tokenData = await Notifications.getExpoPushTokenAsync({
-              projectId: '05f18532-8f5b-432d-8fc5-1ed619a84a05',
-            });
+            const tokenData = await Notifications.getExpoPushTokenAsync();
             const pushToken = tokenData.data;
             console.log('📱 Expo Push Token:', pushToken);
             

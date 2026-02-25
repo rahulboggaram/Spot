@@ -11,7 +11,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.rahulboggaram.Spot",
       "buildNumber": "2",
       "appleTeamId": "G4JSN2MWNK",

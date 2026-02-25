@@ -667,8 +667,7 @@ export default function AdminScreen() {
                       });
                       startWebNotificationSchedule();
                       // Web Push subscription (required for iOS PWA when app is closed/backgrounded)
-                      // VAPID public key (generated via: npx web-push generate-vapid-keys)
-                      const vapidPublicKey = 'BAXLXgLJsuPNz19ye9iQRGd20aiNUiruzLtgISpvXHx78SdB8bJeTgTOO_qFMG_DH1SXuO7RmwS0Q326soghI3I';
+                      const vapidPublicKey = (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY) || (typeof process !== 'undefined' && process.env && (process.env as any).EXPO_PUBLIC_VAPID_PUBLIC_KEY);
                       if (vapidPublicKey && 'serviceWorker' in navigator && 'PushManager' in window) {
                         try {
                           const reg = await navigator.serviceWorker.ready;

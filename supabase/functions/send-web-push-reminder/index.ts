@@ -1,19 +1,14 @@
-// Sends Web Push reminders at 12pm and 5pm to PWA subscribers.
-// Uses npm:web-push for proper encryption in Deno.
+// Sends Web Push reminders at 12pm and 5pm to PWA subscribers (iOS home screen).
+// Call this from a cron at 12:00 and 17:00 on weekdays (e.g. cron-job.org or Supabase pg_cron + pg_net).
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import webpush from "npm:web-push@3.6.7";
+import * as webpush from "jsr:@negrel/webpush";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// Your VAPID keys
-const VAPID_PUBLIC_KEY = 'BAXLXgLJsuPNz19ye9iQRGd20aiNUiruzLtgISpvXHx78SdB8bJeTgTOO_qFMG_DH1SXuO7RmwS0Q326soghI3I';
-const VAPID_PRIVATE_KEY = 'b1fXBJ1hl7wbenTxYvFLW4uF_nVR_I_09jHAVaZybAc';
-const VAPID_SUBJECT = 'mailto:rahulboggaram@gmail.com';
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -21,7 +16,14 @@ serve(async (req) => {
   }
 
   try {
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    const vapidKeysJson = Deno.env.get("VAPID_KEYS_JSON");
+    if (!vapidKeysJson) {
+      console.error("VAPID_KEYS_JSON secret not set");
+      return new Response(
+        JSON.stringify({ success: false, error: "VAPID_KEYS_JSON not configured" }),
+        { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
+      );
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -39,15 +41,17 @@ serve(async (req) => {
       );
     }
 
-    // Determine message based on time
-    const now = new Date();
-    // Convert to IST (UTC+5:30)
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istTime = new Date(now.getTime() + istOffset);
-    const hour = istTime.getUTCHours();
-    const day = istTime.getUTCDay();
-    const isWeekday = day >= 1 && day <= 5;
+    const exportedVapidKeys = JSON.parse(vapidKeysJson);
+    const vapidKeys = await webpush.importVapidKeys(exportedVapidKeys, { extractable: false });
+    const appServer = await webpush.ApplicationServer.new({
+      contactInformation: "mailto:admin@spot.app",
+      vapidKeys,
+    });
 
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay();
+    const isWeekday = day >= 1 && day <= 5;
     let title = "Price Update Reminder";
     let body = "Time to update gold and silver prices.";
 
@@ -60,45 +64,37 @@ serve(async (req) => {
     const payload = JSON.stringify({ title, body, tag: "web-push-reminder" });
     let sent = 0;
     const goneEndpoints: string[] = [];
-    const errors: string[] = [];
 
     for (const row of subs) {
       try {
-        const subscription = {
+        const subscription: webpush.PushSubscription = {
           endpoint: row.endpoint,
-          keys: {
-            p256dh: row.p256dh,
-            auth: row.auth,
-          },
+          keys: { p256dh: row.p256dh, auth: row.auth },
         };
-
-        await webpush.sendNotification(subscription, payload);
+        const subscriber = appServer.subscribe(subscription);
+        await subscriber.pushTextMessage(payload, {});
         sent++;
-        console.log("Push sent to:", row.endpoint.slice(0, 60));
-      } catch (err: any) {
-        const statusCode = err?.statusCode;
-        console.warn("Push failed:", row.endpoint?.slice(0, 60), "status:", statusCode, "msg:", err?.message);
-        errors.push(`${row.endpoint?.slice(0, 40)}: ${statusCode || err?.message}`);
-        if (statusCode === 410 || statusCode === 404) {
+      } catch (err: unknown) {
+        const isGone = err && typeof err === "object" && "isGone" in err && (err as { isGone?: () => boolean }).isGone?.();
+        if (isGone || (err instanceof Error && (err.message.includes("410") || err.message.includes("Gone")))) {
           goneEndpoints.push(row.endpoint);
         }
+        console.warn("Push failed for", row.endpoint?.slice(0, 50), err);
       }
     }
 
-    // Clean up expired subscriptions
     if (goneEndpoints.length > 0) {
       await supabase.from("web_push_subscriptions").delete().in("endpoint", goneEndpoints);
-      console.log("Removed expired subscriptions:", goneEndpoints.length);
     }
 
     return new Response(
-      JSON.stringify({ success: true, sent, total: subs.length, removed: goneEndpoints.length, errors }),
+      JSON.stringify({ success: true, sent, total: subs.length, removed: goneEndpoints.length }),
       { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("send-web-push-reminder error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error?.message || String(error) }),
+      JSON.stringify({ success: false, error: String(error) }),
       { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } }
     );
   }
