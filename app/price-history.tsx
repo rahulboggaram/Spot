@@ -75,12 +75,6 @@ export default function PriceHistoryPage() {
   // Fetch historical data from historical_prices table only – no static fallback
   useEffect(() => {
     const fetchHistoricalPrices = async () => {
-      // On web, historical_prices often times out or is unavailable.
-      // The page can still fully render from market_prices history.
-      if (Platform.OS === 'web') {
-        setHistoricalData([]);
-        return;
-      }
       try {
         const { data: historical, error } = await supabase
           .from('historical_prices')
@@ -121,35 +115,11 @@ export default function PriceHistoryPage() {
     const loadPriceHistory = async () => {
       setLoadingHistory(true);
       try {
-        let historyData: any[] | null = null;
-        let error: any = null;
-        if (Platform.OS === 'web') {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 7000);
-            const response = await fetch('/api/prices-history?limit=100', {
-              cache: 'no-store',
-              signal: controller.signal,
-            });
-            clearTimeout(timeout);
-            if (!response.ok) {
-              const text = await response.text();
-              throw new Error(`API ${response.status}: ${text || 'unknown error'}`);
-            }
-            const payload = await response.json();
-            historyData = Array.isArray(payload?.data) ? payload.data : [];
-          } catch (webError) {
-            error = webError;
-          }
-        } else {
-          const result = await supabase
-            .from('market_prices')
-            .select('*')
-            .order('updated_at', { ascending: false })
-            .limit(100);
-          historyData = result.data;
-          error = result.error;
-        }
+        const { data: historyData, error } = await supabase
+          .from('market_prices')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(100);
         
         if (error) {
           console.error('❌ Error loading price history:', error);
