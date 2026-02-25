@@ -280,18 +280,43 @@ export default function GoldApp() {
     try {
       if (fetchPricesInFlightRef.current) return;
       fetchPricesInFlightRef.current = true;
-      // Only show loading state on initial load (no data yet). Background polling should not flash the UI.
-      if (!data) setIsLoading(true);
+      // Only show loading state on initial load for native apps.
+      // On web we keep rendering fallback prices while background fetch retries.
+      if (!data && Platform.OS !== 'web') setIsLoading(true);
       // Get the two most recent entries: latest (current) and previous
-      const { data: entries, error } = await supabase
-        .from('market_prices')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(2);
+      let entries: any[] | null = null;
+      let error: any = null;
+      if (Platform.OS === 'web') {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 7000);
+          const response = await fetch('/api/prices?limit=2', {
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`API ${response.status}: ${text || 'unknown error'}`);
+          }
+          const payload = await response.json();
+          entries = Array.isArray(payload?.data) ? payload.data : [];
+        } catch (webError) {
+          error = webError;
+        }
+      } else {
+        const result = await supabase
+          .from('market_prices')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(2);
+        entries = result.data;
+        error = result.error;
+      }
       
       if (error) {
         // If network error, keep showing last known data instead of clearing it
-        const errorMessage = (error as any)?.message || '';
+        const errorMessage = (error as any)?.message || String(error || '');
         const errorCode = (error as any)?.code || '';
         if (errorMessage.includes('network') || errorMessage.includes('offline') || errorCode === 'PGRST116') {
           console.log('⚠️ Network error - using cached data:', errorMessage);
@@ -366,7 +391,7 @@ export default function GoldApp() {
       setIsLoading(false); // Stop loading on error
       
       // If network error, keep showing last known data
-      const errorMessage = (e as any)?.message || '';
+      const errorMessage = (e as any)?.message || String(e || '');
       const errorCode = (e as any)?.code || '';
       const isNetworkError = errorMessage.includes('network') || 
                             errorMessage.includes('offline') || 
