@@ -606,10 +606,10 @@ export default function GoldApp() {
 
   const latestHistorical = getLatestHistoricalPrices();
   
-  // Only show database prices (not historical fallback) to avoid showing random numbers
-  // Show loading state if we don't have database data yet
-  const goldBase = data?.gold_999_base || null; // null means loading, don't use fallback
-  const silverBase = data?.silver_base || null; // null means loading, don't use fallback
+  // Prefer live DB prices, but always show historical fallback values to avoid endless
+  // skeleton UI when network/Supabase is temporarily unavailable.
+  const goldBase = data?.gold_999_base ?? latestHistorical?.goldPerGram ?? null;
+  const silverBase = data?.silver_base ?? latestHistorical?.silverPerGram ?? null;
 
   // Get last historical entry from static data as fallback
   const lastHistoricalEntry = historicalPrices.length > 0 ? {

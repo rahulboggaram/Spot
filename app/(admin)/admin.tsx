@@ -91,7 +91,8 @@ export default function AdminScreen() {
   const [goldPrice, setGoldPrice] = useState('');
   const [silverPrice, setSilverPrice] = useState('');
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
+  // On web, render the form immediately and fetch in background.
+  const [fetching, setFetching] = useState(Platform.OS !== 'web');
   const [priceHistory, setPriceHistory] = useState<PriceEntry[]>([]);
   const [currentGoldPerGram, setCurrentGoldPerGram] = useState<number | null>(null);
   const [currentSilverPerGram, setCurrentSilverPerGram] = useState<number | null>(null);
@@ -515,7 +516,7 @@ export default function AdminScreen() {
 
   const dynamicStyles = createStyles(colors);
 
-  if (fetching) {
+  if (fetching && Platform.OS !== 'web') {
     return (
       <SafeAreaView style={[dynamicStyles.safeArea, { backgroundColor: colors.background }]}>
         <StatusBar barStyle="light-content" />
