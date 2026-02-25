@@ -8,8 +8,8 @@ const SUPABASE_ANON_KEY =
 module.exports = async function handler(req, res) {
   try {
     const rawLimit = Array.isArray(req.query?.limit) ? req.query.limit[0] : req.query?.limit;
-    const parsedLimit = Number.parseInt(rawLimit || '1000', 10);
-    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 2000) : 1000;
+    const parsedLimit = Number.parseInt(rawLimit || '100', 10);
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 365) : 100;
 
     const url = `${SUPABASE_URL}/rest/v1/market_prices?select=*&order=updated_at.desc&limit=${limit}`;
     const response = await fetch(url, {

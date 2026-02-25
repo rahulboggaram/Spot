@@ -303,70 +303,43 @@ export default function AdminScreen() {
   // Load the most recent prices and all price history
   useEffect(() => {
     const loadPrices = async () => {
-      try {
-        let currentData: any = null;
-        let historyData: any[] = [];
-
-        // Load all price history since December 15, 2025
-        const startDateISO = new Date('2025-12-15T00:00:00.000Z').toISOString();
-
-        if (Platform.OS === 'web') {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 8000);
-          try {
-            const response = await fetch(`/api/admin-prices?mode=bootstrap&since=${encodeURIComponent(startDateISO)}&limit=2000`, {
-              cache: 'no-store',
-              signal: controller.signal,
-            });
-            clearTimeout(timeout);
-            if (!response.ok) {
-              const text = await response.text();
-              throw new Error(`API ${response.status}: ${text || 'unknown error'}`);
-            }
-            const payload = await response.json();
-            currentData = payload?.latest || null;
-            historyData = Array.isArray(payload?.history) ? payload.history : [];
-          } finally {
-            clearTimeout(timeout);
-          }
-        } else {
-          const { data: latest } = await supabase
-            .from('market_prices')
-            .select('*')
-            .order('updated_at', { ascending: false })
-            .limit(1)
-            .single();
-          currentData = latest || null;
-
-          const { data: history } = await supabase
-            .from('market_prices')
-            .select('*')
-            .gte('updated_at', startDateISO)
-            .order('updated_at', { ascending: false });
-          historyData = Array.isArray(history) ? history : [];
-        }
-
-        if (currentData) {
-          // Store current prices in per gram format for comparison
-          setCurrentGoldPerGram(currentData.gold_999_base || 0);
-          setCurrentSilverPerGram(currentData.silver_base || 0);
-          
-          // Convert from per gram to display units:
-          // Gold: per gram * 10 = 10 grams rate
-          // Silver: per gram * 1000 = 1kg rate
-          const goldDisplay = (currentData.gold_999_base * 10).toLocaleString('en-IN');
-          const silverDisplay = (currentData.silver_base * 1000).toLocaleString('en-IN');
-          setGoldPrice(goldDisplay);
-          setSilverPrice(silverDisplay);
-        }
-
-        setPriceHistory(historyData);
-      } catch (error) {
-        console.error('❌ Error loading admin prices:', error);
-        setErrorMessage('Could not load latest prices. Please try again.');
-      } finally {
-        setFetching(false);
+      // Load current prices
+      const { data: currentData, error: currentError } = await supabase
+        .from('market_prices')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (currentData) {
+        // Store current prices in per gram format for comparison
+        setCurrentGoldPerGram(currentData.gold_999_base || 0);
+        setCurrentSilverPerGram(currentData.silver_base || 0);
+        
+        // Convert from per gram to display units:
+        // Gold: per gram * 10 = 10 grams rate
+        // Silver: per gram * 1000 = 1kg rate
+        const goldDisplay = (currentData.gold_999_base * 10).toLocaleString('en-IN');
+        const silverDisplay = (currentData.silver_base * 1000).toLocaleString('en-IN');
+        setGoldPrice(goldDisplay);
+        setSilverPrice(silverDisplay);
       }
+
+      // Load all price history since December 15, 2025
+      const startDate = new Date('2025-12-15T00:00:00.000Z');
+      const startDateISO = startDate.toISOString();
+      
+      const { data: historyData, error: historyError } = await supabase
+        .from('market_prices')
+        .select('*')
+        .gte('updated_at', startDateISO)
+        .order('updated_at', { ascending: false });
+      
+      if (historyData) {
+        setPriceHistory(historyData);
+      }
+      
+      setFetching(false);
     };
     loadPrices();
   }, []);
@@ -472,62 +445,36 @@ export default function AdminScreen() {
       console.log('📝 Inserting new price entry:');
       console.log('  Gold input (10g):', goldPrice, '→ per gram:', goldPerGram);
       console.log('  Silver input (1kg):', silverPrice, '→ per gram:', silverPerGram);
-      let insertedData: any[] = [];
-      if (Platform.OS === 'web') {
-        const response = await fetch('/api/admin-prices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            gold_999_base: goldPerGram,
-            silver_base: silverPerGram,
-          }),
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`API ${response.status}: ${text || 'Failed to update price'}`);
-        }
-        const payload = await response.json();
-        insertedData = Array.isArray(payload?.inserted) ? payload.inserted : [];
-      } else {
-        const { data, error } = await supabase
-          .from('market_prices')
-          .insert({ 
-            gold_999_base: goldPerGram,
-            silver_base: silverPerGram,
-            updated_at: new Date().toISOString()
-          })
-          .select();
-        if (error) {
-          console.error('❌ Insert error:', error);
-          throw error;
-        }
-        insertedData = Array.isArray(data) ? data : [];
+      
+      const { data: insertedData, error } = await supabase
+        .from('market_prices')
+        .insert({ 
+          gold_999_base: goldPerGram,
+          silver_base: silverPerGram,
+          updated_at: new Date().toISOString()
+        })
+        .select(); // Return the inserted data
+
+      if (error) {
+        console.error('❌ Insert error:', error);
+        throw error;
       }
       
       console.log('✅ Insert successful:', insertedData);
       Alert.alert("Success", `New price entry created! ID: ${insertedData?.[0]?.id || 'N/A'}`);
       
-      // Refresh price history
-      const startDateISO = new Date('2025-12-15T00:00:00.000Z').toISOString();
-      if (Platform.OS === 'web') {
-        const response = await fetch(`/api/admin-prices?mode=bootstrap&since=${encodeURIComponent(startDateISO)}&limit=2000`, {
-          cache: 'no-store',
-        });
-        if (response.ok) {
-          const payload = await response.json();
-          const historyData = Array.isArray(payload?.history) ? payload.history : [];
-          setPriceHistory(historyData);
-        }
-      } else {
-        const { data: historyData } = await supabase
-          .from('market_prices')
-          .select('*')
-          .gte('updated_at', startDateISO)
-          .order('updated_at', { ascending: false });
-        
-        if (historyData) {
-          setPriceHistory(historyData);
-        }
+      // Refresh price history since December 15, 2025
+      const startDate = new Date('2025-12-15T00:00:00.000Z');
+      const startDateISO = startDate.toISOString();
+      
+      const { data: historyData } = await supabase
+        .from('market_prices')
+        .select('*')
+        .gte('updated_at', startDateISO)
+        .order('updated_at', { ascending: false });
+      
+      if (historyData) {
+        setPriceHistory(historyData);
       }
       
       // Update current prices to the newly inserted prices

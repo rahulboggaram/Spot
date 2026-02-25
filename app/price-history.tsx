@@ -127,7 +127,7 @@ export default function PriceHistoryPage() {
           try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 7000);
-            const response = await fetch('/api/prices-history?limit=1000', {
+            const response = await fetch('/api/prices-history?limit=100', {
               cache: 'no-store',
               signal: controller.signal,
             });
@@ -146,7 +146,7 @@ export default function PriceHistoryPage() {
             .from('market_prices')
             .select('*')
             .order('updated_at', { ascending: false })
-            .limit(1000);
+            .limit(100);
           historyData = result.data;
           error = result.error;
         }
