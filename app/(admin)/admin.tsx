@@ -301,15 +301,6 @@ export default function AdminScreen() {
 
   // Load the most recent prices and all price history
   useEffect(() => {
-    let isMounted = true;
-    // Safety net: if a network request hangs, don't keep the admin view blocked forever.
-    const fetchTimeout = setTimeout(() => {
-      if (isMounted) {
-        console.log('⚠️ Admin initial load timed out, showing form');
-        setFetching(false);
-      }
-    }, 8000);
-
     const loadPrices = async () => {
       try {
         // Load current prices
@@ -359,18 +350,10 @@ export default function AdminScreen() {
         console.error('❌ Failed loading admin prices:', e);
       } finally {
         // Always stop spinner so the admin form is usable even when fetch fails.
-        clearTimeout(fetchTimeout);
-        if (isMounted) {
-          setFetching(false);
-        }
+        setFetching(false);
       }
     };
     loadPrices();
-
-    return () => {
-      isMounted = false;
-      clearTimeout(fetchTimeout);
-    };
   }, []);
 
   // Handle gold price input with comma formatting
@@ -550,10 +533,7 @@ export default function AdminScreen() {
       <SafeAreaView style={[dynamicStyles.safeArea, { backgroundColor: colors.background }]}>
         <StatusBar barStyle="light-content" />
         <View style={dynamicStyles.loadingContainer}>
-          <ActivityIndicator color="#FFFFFF" size="large" />
-          <Text style={[dynamicStyles.loadingText, { color: '#FFFFFF' }, getInterFontFeatures()]}>
-            Loading admin...
-          </Text>
+          <ActivityIndicator color={colors.text} size="large" />
         </View>
       </SafeAreaView>
     );
@@ -823,10 +803,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
   },
   navBarWrapper: {
     width: '100%',
