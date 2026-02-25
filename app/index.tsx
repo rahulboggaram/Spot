@@ -414,6 +414,10 @@ export default function GoldApp() {
   useEffect(() => {
     console.log('🚀 ===== useEffect RUNNING - Starting data fetch =====');
     console.log('🚀 Static historical prices available:', historicalPrices.length, 'entries');
+    // Safety net: if initial fetch hangs, stop skeleton UI and show fallback prices.
+    const loadingSafetyTimeout = setTimeout(() => {
+      setIsLoading((current) => (current ? false : current));
+    }, 8000);
     
     // Delay widget update slightly to ensure native modules are ready
     // Immediately update widget with static data on app load (so it doesn't show "Loading...")
@@ -465,6 +469,7 @@ export default function GoldApp() {
       supabase.removeChannel(channel);
       subscription.remove();
       clearInterval(pollingInterval);
+      clearTimeout(loadingSafetyTimeout);
     };
   }, []);
 
